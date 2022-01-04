@@ -1,0 +1,74 @@
+---
+- name: wlan2 radio tuning
+  connection: network_cli
+  gather_facts: false
+  hosts: routers
+  tasks:
+
+    - name: Wireless
+      routeros_command:
+        commands: /interface wireless set [ find default-name=wlan1 ] band=2ghz-b/g/n disabled=no mode=ap-bridge ssid=HOTSPOT wireless-protocol=802.11 
+
+    - name: Ajouter un pont LAN
+      routeros_command:
+        commands: /interface bridge add name=LAN
+    
+    - name: ether2
+      routeros_command:
+        commands: /interface bridge port add interface=ether2 bridge=LAN
+
+    - name: ether3
+      routeros_command:
+        commands: /interface bridge port add interface=ether3 bridge=LAN
+
+    - name: ether4
+      routeros_command:
+        commands: /interface bridge port add interface=ether4 bridge=LAN
+
+    - name: ether5
+      routeros_command:
+        commands: /interface bridge port add interface=ether5 bridge=LAN
+
+    - name: wlan1
+      routeros_command:
+        commands: /interface bridge port add interface=wlan1 bridge=LAN
+    
+    - name: Attribution des address au pont LAN1
+      routeros_command:
+        commands: /ip address add address=192.168.88.25/24 interface=LAN
+
+    - name: Firewall
+      routeros_command:
+        commands: /ip firewall nat add chain=srcnat out-interface=ether1 action=masquerade
+
+    - name: IP POOL
+      routeros_command:
+        commands: /ip pool add name=hs-pool-1 ranges=192.168.88.1-192.168.88.24
+    
+    - name: Dhcp-server
+      routeros_command:
+        commands: /ip dhcp-server network add address=192.168.88.0/24 gateway=192.168.88.25 \ dns-server=10.0.0.1
+
+    - name: DHCP-Server
+      routeros_command:
+        commands: /ip dhcp-server add interface=LAN address-pool=hs-pool-1 disabled=no name=dhcp1    
+    
+    - name: HOTSPOT PROFILE
+      routeros_command:
+        commands: /ip hotspot profile add dns-name=hotspot.example.com hotspot-address=192.168.88.25 name=hsprof1 smtp-server=0.0.0.0
+    
+    - name: HOTSPOT
+      routeros_command: 
+        commands: /ip hotspot add address-pool=hs-pool-1 disabled=no interface=LAN name=hotspot1 profile=hsprof1
+ 
+    - name: HOTSPOT
+      routeros_command: 
+        commands: /ip hotspot user profile set [ find default=yes ] idle-timeout=none keepalive-timeout=2m mac-cookie-timeout=3d
+
+    - name: Create User profile
+      routeros_command:
+        commands: /ip hotspot user add name=dexter password=dexter
+    
+    - name: Create User profile
+      routeros_command:
+        commands: /ip hotspot user add name=jack password=jack
